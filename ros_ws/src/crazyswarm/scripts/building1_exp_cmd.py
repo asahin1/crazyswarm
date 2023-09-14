@@ -1,9 +1,16 @@
 #!/usr/bin/env python
 
 import numpy as np
+import csv
 
 from pycrazyswarm import *
 import uav_trajectory
+import time
+
+
+abs_start_time = 0
+pos_log = []
+time_log = []
 
 
 def executeTrajectory(timeHelper, cf, trajpath, rate=100, offset=np.zeros(3)):
@@ -12,6 +19,8 @@ def executeTrajectory(timeHelper, cf, trajpath, rate=100, offset=np.zeros(3)):
 
     start_time = timeHelper.time()
     while not timeHelper.isShutdown():
+        pos_log.append(cf.position())
+        time_log.append(timeHelper.time()-abs_start_time);
         t = timeHelper.time() - start_time
         if t > traj.duration:
             break
@@ -33,6 +42,8 @@ def executeTrajectory(timeHelper, cf, trajpath, rate=100, offset=np.zeros(3)):
     hover_start = timeHelper.time()
     hover_duration = 3
     while not timeHelper.isShutdown():
+        pos_log.append(cf.position())
+        time_log.append(timeHelper.time()-abs_start_time);
         t = timeHelper.time() - hover_start
         if t > hover_duration:
             break
@@ -41,6 +52,9 @@ def executeTrajectory(timeHelper, cf, trajpath, rate=100, offset=np.zeros(3)):
 
 
 if __name__ == "__main__":
+
+    scenario = "b"
+
     swarm = Crazyswarm()
     timeHelper = swarm.timeHelper
     cf = swarm.allcfs.crazyflies[0]
@@ -51,16 +65,33 @@ if __name__ == "__main__":
     rate = 30.0
     Z = 0.3
 
-    timeHelper.sleep(10)
+    timeHelper.sleep(20)
 
+    abs_start_time = timeHelper.time()
     cf.takeoff(targetHeight=Z, duration=Z+1.0)
     timeHelper.sleep(Z+2.0)
 
-    # executeTrajectory(timeHelper, cf, "my_trajectories/traj_square.csv", rate, offset=np.array([0, 0, 0.0]))
-    executeTrajectory(timeHelper, cf, "my_trajectories/b1_cf3_traj1.csv", rate, offset=np.array([0, 0, 0.0]))
-    timeHelper.sleepForRate(30)
-    executeTrajectory(timeHelper, cf, "my_trajectories/b1_cf3_traj2.csv", rate, offset=np.array([0, 0, 0.0]))
+    if(scenario == "a"):
+        executeTrajectory(timeHelper, cf, "my_trajectories/b1_inf5_p1_traj1_combined.csv", rate, offset=np.array([0, 0, 0.0]))
+        timeHelper.sleepForRate(30)
+        executeTrajectory(timeHelper, cf, "my_trajectories/b1_inf5_p1_traj2_combined.csv", rate, offset=np.array([0, 0, 0.0]))
+    elif(scenario == "b"):
+        executeTrajectory(timeHelper, cf, "my_trajectories/b1_inf5_p2_traj1_combined.csv", rate, offset=np.array([0, 0, 0.0]))
+        timeHelper.sleepForRate(30)
+        executeTrajectory(timeHelper, cf, "my_trajectories/b1_inf5_p2_traj2_combined.csv", rate, offset=np.array([0, 0, 0.0]))
+    else:
+        print("No scenario specified")
+        timeHelper.sleepForRate(30)
 
     cf.notifySetpointsStop()
     cf.land(targetHeight=0.03, duration=Z+1.0)
     timeHelper.sleep(Z+2.0)
+
+
+    timestr = time.strftime("%Y%m%d_%H%M%S")
+    file_name = "trajectory_log/pos_log_" + timestr + ".csv"
+
+    with open(file_name, 'w', newline='') as csvfile:
+        log_writer = csv.writer(csvfile, delimiter=',')
+        for i in range(0,len(pos_log)):
+            log_writer.writerow([time_log[i],pos_log[i][0],pos_log[i][1],pos_log[i][2]])
